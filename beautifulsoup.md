@@ -574,6 +574,305 @@ for element in last_a_tag.next_elements:
 # None
 ```
 # Searching the tree (Поиск по дереву)
+Beautiful Soup определяет множество методов поиска в дереве синтаксического анализа, но все они очень похожи. Я собираюсь потратить много времени на объяснение двух наиболее популярных методов: `find()` и `find_all()`. Другие методы используют почти точно такие же аргументы, поэтому я просто кратко опишу их.
+
+Еще раз, я буду использовать документ “три сестры” в качестве примера:
+
+```python
+html_doc = """
+<html><head><title>The Dormouse's story</title></head>
+<body>
+<p class="title"><b>The Dormouse's story</b></p>
+
+<p class="story">Once upon a time there were three little sisters; and their names were
+<a href="http://example.com/elsie" class="sister" id="link1">Elsie</a>,
+<a href="http://example.com/lacie" class="sister" id="link2">Lacie</a> and
+<a href="http://example.com/tillie" class="sister" id="link3">Tillie</a>;
+and they lived at the bottom of a well.</p>
+
+<p class="story">...</p>
+"""
+
+from bs4 import BeautifulSoup
+soup = BeautifulSoup(html_doc, 'html.parser')
+```
+Передавая фильтр в аргумент типа find_all(), вы можете увеличить масштаб интересующих вас частей документа.
+
+## Виды фильтров
+Прежде чем подробно рассказать о `find_all()` и подобных методах, я хочу показать примеры различных фильтров, которые вы можете передать в эти методы. Эти фильтры отображаются снова и снова во всем поисковом API. Вы можете использовать их для фильтрации на основе имени тега, его атрибутов, текста строки или некоторой их комбинации.
+
+### A string (строка)
+Самый простой фильтр - это строка. Передайте строку методу поиска, и Beautiful Soup выполнит сопоставление именно с этой строкой. Этот код находит все теги `<b>` в документе:
+
+```python
+soup.find_all('b')
+# [<b>The Dormouse's story</b>]
+```
+Если вы передадите строку в байтах, Beautiful Soup предположит, что строка закодирована как UTF-8. Вы можете избежать этого, передав вместо этого строку в Юникоде.
+
+### A regular expression (Регулярные выражения)
+Если вы передадите объект регулярного выражения, Beautiful Soup выполнит фильтрацию по этому регулярному выражению, используя свой метод `search()`. Этот код находит все теги, имена которых начинаются с буквы “b”; в данном случае тег `<body>` и тег `<b>`:
+
+```python
+import re
+for tag in soup.find_all(re.compile("^b")):
+    print(tag.name)
+# body
+# b
+```
+Этот код находит все теги, названия которых содержат букву ‘t’:
+
+```python
+for tag in soup.find_all(re.compile("t")):
+    print(tag.name)
+# html
+# title
+```
+### A list (Список)
+Если вы передадите список, Beautiful Soup разрешит сопоставление строки с любым элементом в этом списке. Этот код находит все теги `<a>` и все теги `<b>`:
+
+```python
+soup.find_all(["a", "b"])
+# [<b>The Dormouse's story</b>,
+#  <a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>,
+#  <a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>,
+#  <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>]
+```
+### True
+Значение `True` соответствует всему, что только возможно. Этот код находит все теги в документе, но ни одну из текстовых строк:
+
+```python
+for tag in soup.find_all(True):
+    print(tag.name)
+# html
+# head
+# title
+# body
+# p
+# b
+# p
+# a
+# a
+# a
+# p
+```
+### A function (функция)
+Если ни одно из других совпадений вам не подходит, определите функцию, которая принимает элемент в качестве единственного аргумента. Функция должна возвращать значение `True`, если аргумент совпадает, и значение `False` в противном случае.
+
+Вот функция, которая возвращает значение `True`, если тег определяет атрибут “class”, но не определяет атрибут “id”:
+
+```python
+def has_class_but_no_id(tag):
+    return tag.has_attr('class') and not tag.has_attr('id')
+```
+Передайте эту функцию в `find_all()`, и вы получите все теги `<p>`:
+
+```python
+soup.find_all(has_class_but_no_id)
+# [<p class="title"><b>The Dormouse's story</b></p>,
+#  <p class="story">Once upon a time there were...</p>,
+#  <p class="story">...</p>]
+```
+Эта функция распознает только теги `<p>`. Он не распознает теги `<a>`, потому что эти теги определяют как “класс”, так и “идентификатор”. Он не распознает такие теги, как `<html>` и `<title>`, потому что эти теги не определяют “класс”.
+
+Если вы передаете функцию для фильтрации по определенному атрибуту, такому как `href`, аргументом, передаваемым в функцию, будет значение атрибута, а не весь тег. Вот функция, которая находит все теги `a`, атрибут `href` которых не соответствует регулярному выражению:
+
+```python
+def not_lacie(href):
+    return href and not re.compile("lacie").search(href)
+soup.find_all(href=not_lacie)
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>,
+#  <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>]
+```
+Функция может быть настолько сложной, насколько вам это нужно. Вот функция, которая возвращает значение `True`, если тег окружен строковыми объектами:
+
+```python
+from bs4 import NavigableString
+def surrounded_by_strings(tag):
+    return (isinstance(tag.next_element, NavigableString)
+            and isinstance(tag.previous_element, NavigableString))
+
+for tag in soup.find_all(surrounded_by_strings):
+    print tag.name
+# p
+# a
+# a
+# a
+# p
+```
+Теперь мы готовы подробно рассмотреть методы поиска.
+
+## find_all()
+Signature: `find_all`(name, attrs, recursive, string, limit, **kwargs)
+
+Метод `find_all()` просматривает потомков тега и извлекает всех потомков, которые соответствуют вашим фильтрам. Я привел несколько примеров в разделе Виды фильтров, но вот еще несколько:
+
+```python
+soup.find_all("title")
+# [<title>The Dormouse's story</title>]
+
+soup.find_all("p", "title")
+# [<p class="title"><b>The Dormouse's story</b></p>]
+
+soup.find_all("a")
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>,
+#  <a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>,
+#  <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>]
+
+soup.find_all(id="link2")
+# [<a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>]
+
+import re
+soup.find(string=re.compile("sisters"))
+# u'Once upon a time there were three little sisters; and their names were\n'
+```
+Некоторые из них должны выглядеть знакомыми, но другие являются новыми. Что значит передать значение для `string` или `id`? Почему `find_all("p", "title")` находит тег `<p>` с классом CSS “title”? Давайте посмотрим на аргументы функции `find_all()`.
+
+### The name argument
+
+Передайте значение для `name`, и вы скажете Beautiful Soup рассматривать только теги с определенными именами. Текстовые строки будут проигнорированы, как и теги, имена которых не совпадают.
+
+Это самое простое использование:
+
+```python
+soup.find_all("title")
+# [<title>The Dormouse's story</title>]
+```
+Вспомните из видов фильтров, что значение для присвоения имени может быть строкой, регулярным выражением, списком, функцией или значением True.
+
+### The keyword arguments
+
+Любой аргумент, который не распознан, будет преобразован в фильтр по одному из атрибутов тега. Если вы передадите значение для аргумента с именем `id`, Beautiful Soup выполнит фильтрацию по атрибуту ‘id’ каждого тега:
+
+```python
+soup.find_all(id='link2')
+# [<a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>]
+```
+Если вы передадите значение для `href`, Beautiful Soup выполнит фильтрацию по атрибуту ‘href’ каждого тега:
+
+```python
+soup.find_all(href=re.compile("elsie"))
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>]
+```
+Вы можете отфильтровать атрибут на основе строки, регулярного выражения, списка, функции или значения True.
+
+Этот код находит все теги, атрибут `id` которых имеет значение, независимо от того, каково это значение:
+
+```python
+soup.find_all(id=True)
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>,
+#  <a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>,
+#  <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>]
+```
+Вы можете отфильтровать сразу несколько атрибутов, передав более одного аргумента ключевого слова:
+
+```python
+soup.find_all(href=re.compile("elsie"), id='link1')
+# [<a class="sister" href="http://example.com/elsie" id="link1">three</a>]
+```
+Некоторые атрибуты, такие как атрибуты data-* в HTML 5, имеют имена, которые нельзя использовать в качестве имен аргументов ключевых слов:
+
+```python
+data_soup = BeautifulSoup('<div data-foo="value">foo!</div>')
+data_soup.find_all(data-foo="value")
+# SyntaxError: keyword can't be an expression
+```
+Вы можете использовать эти атрибуты при поиске, поместив их в словарь и передав словарь в `find_all()` в качестве аргумента `attrs`:
+
+```python
+data_soup.find_all(attrs={"data-foo": "value"})
+# [<div data-foo="value">foo!</div>]
+```
+Вы не можете использовать аргумент ключевого слова для поиска элемента HTML ‘name’, потому что Beautiful Soup использует аргумент `name` для указания имени самого тега. Вместо этого вы можете присвоить значение ‘name’ в аргументе `attrs`:
+
+```python
+name_soup = BeautifulSoup('<input name="email"/>')
+name_soup.find_all(name="email")
+# []
+name_soup.find_all(attrs={"name": "email"})
+# [<input name="email"/>]
+```
+### Searching by CSS class
+
+Очень полезно искать тег, который имеет определенный класс CSS, но имя атрибута CSS, “class”, является зарезервированным словом в Python. Использование `class` в качестве аргумента ключевого слова приведет к синтаксической ошибке. Начиная с версии Beautiful Soup 4.1.2, вы можете выполнять поиск по классу CSS, используя ключевое слово argument `class_`:
+
+```python
+soup.find_all("a", class_="sister")
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>,
+#  <a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>,
+#  <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>]
+```
+Как и в случае с любым аргументом ключевого слова, вы можете передать `class_` строку, регулярное выражение, функцию или значение `True`:
+
+```python
+soup.find_all(class_=re.compile("itl"))
+# [<p class="title"><b>The Dormouse's story</b></p>]
+
+def has_six_characters(css_class):
+    return css_class is not None and len(css_class) == 6
+
+soup.find_all(class_=has_six_characters)
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>,
+#  <a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>,
+#  <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>]
+```
+Помните, что один тег может иметь несколько значений для своего атрибута “class”. Когда вы ищете тег, соответствующий определенному классу CSS, вы сопоставляете его с любым из его классов CSS:
+
+```python
+css_soup = BeautifulSoup('<p class="body strikeout"></p>')
+css_soup.find_all("p", class_="strikeout")
+# [<p class="body strikeout"></p>]
+
+css_soup.find_all("p", class_="body")
+# [<p class="body strikeout"></p>]
+```
+Вы также можете выполнить поиск по точному строковому значению атрибута `class`:
+
+```python
+css_soup.find_all("p", class_="body strikeout")
+# [<p class="body strikeout"></p>]
+```
+Но поиск вариантов строкового значения не сработает:
+
+```python
+css_soup.find_all("p", class_="strikeout body")
+# []
+```
+Если вы хотите выполнить поиск тегов, соответствующих двум или более классам CSS, вам следует использовать селектор CSS:
+
+```python
+css_soup.select("p.strikeout.body")
+# [<p class="body strikeout"></p>]
+```
+В старых версиях Beautiful Soup, в которых нет ярлыка `class_`, вы можете использовать трюк `attrs`, упомянутый выше. Создайте словарь, значением которого для “class” является строка (или регулярное выражение, или что-то еще), которую вы хотите найти:
+
+```python
+soup.find_all("a", attrs={"class": "sister"})
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>,
+#  <a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>,
+#  <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>]
+```
+### The `string` argument
+
+```python
+
+```
+
+
+```python
+
+```
+
+
+```python
+
+```
+
+
+```python
+
+```
+
 
 ```python
 
