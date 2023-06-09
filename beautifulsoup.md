@@ -853,31 +853,60 @@ soup.find_all("a", attrs={"class": "sister"})
 #  <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>]
 ```
 ### The `string` argument
+С помощью `string` вы можете выполнять поиск по строкам вместо тегов. Как и в случае с аргументами `name` и ключевого слова, вы можете передать строку, регулярное выражение, список, функцию или значение True. Вот несколько примеров:
 
 ```python
+soup.find_all(string="Elsie")
+# [u'Elsie']
 
+soup.find_all(string=["Tillie", "Elsie", "Lacie"])
+# [u'Elsie', u'Lacie', u'Tillie']
+
+soup.find_all(string=re.compile("Dormouse"))
+[u"The Dormouse's story", u"The Dormouse's story"]
+
+def is_the_only_string_within_a_tag(s):
+    """Return True if this string is the only child of its parent tag."""
+    return (s == s.parent.string)
+
+soup.find_all(string=is_the_only_string_within_a_tag)
+# [u"The Dormouse's story", u"The Dormouse's story", u'Elsie', u'Lacie', u'Tillie', u'...']
 ```
-
+Хотя `string` предназначен для поиска строк, вы можете объединить его с аргументами, которые находят теги: Beautiful Soup найдет все теги, `.string` которых соответствует вашему значению для `string`. Этот код находит теги `<a>`, строка которых равна “Elsie”.:
 
 ```python
-
+oup.find_all("a", string="Elsie")
+# [<a href="http://example.com/elsie" class="sister" id="link1">Elsie</a>]
 ```
-
+Аргумент `string` является новым в Beautiful Soup 4.4.0. В более ранних версиях он назывался `text`:
 
 ```python
-
+soup.find_all("a", text="Elsie")
+# [<a href="http://example.com/elsie" class="sister" id="link1">Elsie</a>]
 ```
+### The limit argument(Предельный аргумент)
+Если вы вызовете `mytag.find_all()`, Beautiful Soup проверит всех потомков `mytag`: его дочерних элементов, дочерних элементов его дочерних элементов и так далее. Если вы хотите, чтобы Beautiful Soup учитывал только прямых дочерних элементов, вы можете передать значение `recursive=False`. Посмотрите на разницу здесь:
+```python
+soup.html.find_all("title")
+# [<title>The Dormouse's story</title>]
 
+soup.html.find_all("title", recursive=False)
+# []
+```
+Вот эта часть документа
 
 ```python
-
+<html>
+ <head>
+  <title>
+   The Dormouse's story
+  </title>
+ </head>
+...
 ```
+Тег `<title>` находится под тегом `<html>`, но не непосредственно под тегом `<html>`: тег `<head>` мешает. Beautiful Soup находит тег `<title>`, когда ему разрешено просматривать всех потомков тега `<html>`, но когда recursive=False ограничивает его непосредственными дочерними элементами тега `<html>`, он ничего не находит.
 
-
-```python
-
-```
-
+Beautiful Soup предлагает множество методов поиска по дереву (рассмотренных ниже), и они в основном принимают те же аргументы, что и `find_all()`: `name`, `attrs`, `string`, `limit` и аргументы ключевого слова. Но рекурсивный аргумент отличается: `find_all()` и `find()` - единственные методы, которые его поддерживают. Передача `recursive=False` в такой метод, как `find_parents()`, была бы не очень полезна.
 
 ```python
 
