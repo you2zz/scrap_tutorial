@@ -885,6 +885,17 @@ soup.find_all("a", text="Elsie")
 # [<a href="http://example.com/elsie" class="sister" id="link1">Elsie</a>]
 ```
 ### The limit argument(Предельный аргумент)
+Функция `find_all()` возвращает все теги и строки, соответствующие вашим фильтрам. Это может занять некоторое время, если документ большой. Если вам не нужны все результаты, вы можете ввести число для ограничения. Это работает точно так же, как ключевое слово LIMIT в SQL. Он сообщает Beautiful Soup прекратить сбор результатов после того, как будет найдено определенное число.
+
+В документе “три сестры” есть три ссылки, но этот код находит только первые две:
+
+```python
+soup.find_all("a", limit=2)
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>,
+#  <a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>]
+```
+### The recursive argument (Рекурсивный аргумент)
+
 Если вы вызовете `mytag.find_all()`, Beautiful Soup проверит всех потомков `mytag`: его дочерних элементов, дочерних элементов его дочерних элементов и так далее. Если вы хотите, чтобы Beautiful Soup учитывал только прямых дочерних элементов, вы можете передать значение `recursive=False`. Посмотрите на разницу здесь:
 ```python
 soup.html.find_all("title")
@@ -907,6 +918,135 @@ soup.html.find_all("title", recursive=False)
 Тег `<title>` находится под тегом `<html>`, но не непосредственно под тегом `<html>`: тег `<head>` мешает. Beautiful Soup находит тег `<title>`, когда ему разрешено просматривать всех потомков тега `<html>`, но когда recursive=False ограничивает его непосредственными дочерними элементами тега `<html>`, он ничего не находит.
 
 Beautiful Soup предлагает множество методов поиска по дереву (рассмотренных ниже), и они в основном принимают те же аргументы, что и `find_all()`: `name`, `attrs`, `string`, `limit` и аргументы ключевого слова. Но рекурсивный аргумент отличается: `find_all()` и `find()` - единственные методы, которые его поддерживают. Передача `recursive=False` в такой метод, как `find_parents()`, была бы не очень полезна.
+
+## Вызов тега подобно вызову функции `find_all()`
+
+Поскольку find_all() - самый популярный метод в API поиска Beautiful Soup, вы можете использовать для него ярлык. Если вы относитесь к объекту BeautifulSoup или объекту Tag как к функции, то это то же самое, что вызвать find_all() для этого объекта. Эти две строки кода эквивалентны:
+
+```python
+soup.find_all("a")
+soup("a")
+```
+Эти две строки также эквивалентны:
+
+```python
+soup.title.find_all(string=True)
+soup.title(string=True)
+```
+## `find()`
+
+Signature: find(name, attrs, recursive, string, **kwargs)
+
+Метод `find_all()` сканирует весь документ в поисках результатов, но иногда вы хотите найти только один результат. Если вы знаете, что в документе есть только один тег `<body>`, сканировать весь документ в поисках дополнительных - пустая трата времени. Вместо того чтобы передавать значение `limit=1` каждый раз, когда вы вызываете `find_all`, вы можете использовать метод `find()`. Эти две строки кода почти эквивалентны:
+
+```python
+soup.find_all('title', limit=1)
+# [<title>The Dormouse's story</title>]
+
+soup.find('title')
+# <title>The Dormouse's story</title>
+```
+Единственная разница заключается в том, что функция `find_all()` возвращает список, содержащий единственный результат, а функция `find()` просто возвращает результат.
+
+Если функция `find_all()` ничего не может найти, она возвращает пустой список. Если функция `find()` ничего не может найти, она возвращает None:
+
+```python
+print(soup.find("nosuchtag"))
+# None
+```
+Помните трюк с `soup.head.title` при навигации по именам тегов? Этот трюк работает при повторном вызове функции `find()`:
+
+```python
+soup.head.title
+# <title>The Dormouse's story</title>
+
+soup.find("head").find("title")
+# <title>The Dormouse's story</title>
+```
+### `find_parents()` и `find_parent()`
+Signature: find_parents(name, attrs, string, limit, **kwargs)
+
+Signature: find_parent(name, attrs, string, **kwargs)
+
+Я потратил много времени на рассмотрение функций `find_all()` и `find()`. API Beautiful Soup определяет десять других методов поиска по дереву, но не бойтесь. Пять из этих методов в основном такие же, как `find_all()`, а остальные пять в основном такие же, как `find()`. Единственные различия заключаются в том, в каких частях дерева они выполняют поиск.
+
+Сначала давайте рассмотрим функции `find_parents()` и `find_parent()`. Помните, что `find_all()` и `find()` продвигаются вниз по дереву, просматривая потомков тега. Эти методы делают обратное: они прокладывают себе путь вверх по дереву, просматривая родительские элементы тега (или строки). Давайте попробуем их, начав со строки, глубоко спрятанной в документе “три дочери”.:
+
+```python
+a_string = soup.find(string="Lacie")
+a_string
+# u'Lacie'
+
+a_string.find_parents("a")
+# [<a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>]
+
+a_string.find_parent("p")
+# <p class="story">Once upon a time there were three little sisters; and their names were
+#  <a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>,
+#  <a class="sister" href="http://example.com/lacie" id="link2">Lacie</a> and
+#  <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>;
+#  and they lived at the bottom of a well.</p>
+
+a_string.find_parents("p", class="title")
+# []
+```
+Один из трех тегов `<a>` является прямым родительским элементом рассматриваемой строки, поэтому наш поиск находит его. Один из трех тегов `<p>` является косвенным родительским элементом строки, и наш поиск также находит его. Где-то в документе есть тег `<p>` с классом CSS “title”, но он не является одним из родительских элементов этой строки, поэтому мы не можем найти его с помощью `find_parents()`.
+
+Возможно, вы установили связь между `find_parent()` и `find_parents()`, а также атрибутами `.parent` и `.parents`, упомянутыми ранее. Связь очень сильная. Эти методы поиска фактически используют `.parents` для перебора всех родительских элементов и проверки каждого из них на соответствие предоставленному фильтру, чтобы увидеть, соответствует ли он.
+
+## `find_next_siblings()` и `find_next_sibling()`
+
+Signature: find_next_siblings(name, attrs, string, limit, **kwargs)
+
+Signature: find_next_sibling(name, attrs, string, **kwargs)
+
+Эти методы используют `.next_siblings` для перебора остальных дочерних элементов элемента в дереве. Метод `find_next_siblings()` возвращает все совпадающие братья и сестры, а `find_next_sibling()` возвращает только первый из них:
+
+```python
+first_link = soup.a
+first_link
+# <a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>
+
+first_link.find_next_siblings("a")
+# [<a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>,
+#  <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>]
+
+first_story_paragraph = soup.find("p", "story")
+first_story_paragraph.find_next_sibling("p")
+# <p class="story">...</p>
+```
+
+
+
+```python
+
+```
+
+
+
+```python
+
+```
+
+
+
+```python
+
+```
+
+
+
+```python
+
+```
+
+
+
+```python
+
+```
+
+
 
 ```python
 
