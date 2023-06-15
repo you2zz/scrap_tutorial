@@ -1015,7 +1015,218 @@ first_story_paragraph = soup.find("p", "story")
 first_story_paragraph.find_next_sibling("p")
 # <p class="story">...</p>
 ```
+## `find_previous_siblings()` и `find_previous_sibling()`
+Signature: find_previous_siblings(name, attrs, string, limit, **kwargs)
 
+Signature: find_previous_sibling(name, attrs, string, **kwargs)
+
+Эти методы используют `.previous_siblings` для перебора дочерних элементов элемента, которые предшествуют ему в дереве. Метод `find_previous_siblings()` возвращает все совпадающие братья и сестры, а `find_previous_sibling()` возвращает только первый из них:
+
+```python
+last_link = soup.find("a", id="link3")
+last_link
+# <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>
+
+last_link.find_previous_siblings("a")
+# [<a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>,
+#  <a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>]
+
+first_story_paragraph = soup.find("p", "story")
+first_story_paragraph.find_previous_sibling("p")
+# <p class="title"><b>The Dormouse's story</b></p>
+```
+## `find_all_next()` и `find_next()`
+Signature: find_all_next(name, attrs, string, limit, **kwargs)
+
+Signature: find_next(name, attrs, string, **kwargs)
+
+Эти методы используют `.next_elements` для перебора любых тегов и строк, которые следуют за ним в документе. Метод `find_all_next()` возвращает все совпадения, а `find_next()` возвращает только первое совпадение:
+
+```python
+first_link = soup.a
+first_link
+# <a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>
+
+first_link.find_all_next(string=True)
+# [u'Elsie', u',\n', u'Lacie', u' and\n', u'Tillie',
+#  u';\nand they lived at the bottom of a well.', u'\n\n', u'...', u'\n']
+
+first_link.find_next("p")
+# <p class="story">...</p>
+```
+В первом примере появилась строка “Elsie”, хотя она содержалась в теге `<a>`, с которого мы начали. Во втором примере появился последний тег `<p>` в документе, хотя он находится не в той же части дерева, что и тег `<a>`, с которого мы начали. Для этих методов все, что имеет значение, - это то, что элемент соответствует фильтру и отображается в документе позже, чем начальный элемент.
+
+## `find_all_previous()` и `find_previous()`
+Signature: find_all_previous(name, attrs, string, limit, **kwargs)
+
+Signature: find_previous(name, attrs, string, **kwargs)
+
+Эти методы используют `.previous_elements` для перебора тегов и строк, которые были до него в документе. Метод `find_all_previous()` возвращает все совпадения, а `find_previous() `возвращает только первое совпадение:
+
+```python
+first_link = soup.a
+first_link
+# <a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>
+
+first_link.find_all_previous("p")
+# [<p class="story">Once upon a time there were three little sisters; ...</p>,
+#  <p class="title"><b>The Dormouse's story</b></p>]
+
+first_link.find_previous("title")
+# <title>The Dormouse's story</title>
+```
+Вызов `find_all_previous("p")` нашел первый абзац в документе (тот, который имеет class=”title”), но он также находит второй абзац, тег `<p>`, который содержит тег `<a>`, с которого мы начали. Это не должно слишком удивлять: мы просматриваем все теги, которые появляются в документе раньше, чем тот, с которого мы начали. Тег `<p>`, содержащий тег `<a>`, должен был отображаться перед тегом `<a>`, который он содержит.
+
+## Селекторы CSS (CSS selectors)
+Начиная с версии 4.7.0, Beautiful Soup поддерживает большинство селекторов CSS4 через проект SoupSieve. Если вы установили Beautiful Soup через `pip`, SoupSieve был установлен одновременно, так что вам не нужно делать ничего дополнительного.
+
+В `BeautifulSoup` есть метод .`select()`, который использует SoupSieve для запуска CSS-селектора для проанализированного документа и возврата всех совпадающих элементов. У `Tag` есть аналогичный метод, который запускает CSS-селектор для содержимого одного тега.
+
+(В более ранних версиях `Beautiful Soup` также есть метод `.select()`, но поддерживаются только наиболее часто используемые CSS-селекторы.)
+
+В документации SoupSieve перечислены все поддерживаемые в настоящее время CSS-селекторы, но вот некоторые из основных:
+
+Вы можете найти теги:
+```python
+soup.select("title")
+# [<title>The Dormouse's story</title>]
+
+soup.select("p:nth-of-type(3)")
+# [<p class="story">...</p>]
+```
+Найдите теги под другими тегами:
+
+```python
+soup.select("body a")
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>,
+#  <a class="sister" href="http://example.com/lacie"  id="link2">Lacie</a>,
+#  <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>]
+
+soup.select("html head title")
+# [<title>The Dormouse's story</title>]
+```
+Найдите теги непосредственно под другими тегами:
+
+```python
+soup.select("head > title")
+# [<title>The Dormouse's story</title>]
+
+soup.select("p > a")
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>,
+#  <a class="sister" href="http://example.com/lacie"  id="link2">Lacie</a>,
+#  <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>]
+
+soup.select("p > a:nth-of-type(2)")
+# [<a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>]
+
+soup.select("p > #link1")
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>]
+
+soup.select("body > a")
+# []
+```
+Найдите братьев и сестер тегов:
+
+```python
+soup.select("#link1 ~ .sister")
+# [<a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>,
+#  <a class="sister" href="http://example.com/tillie"  id="link3">Tillie</a>]
+
+soup.select("#link1 + .sister")
+# [<a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>]
+```
+Поиск тегов по классу CSS:
+
+```python
+soup.select(".sister")
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>,
+#  <a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>,
+#  <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>]
+
+soup.select("[class~=sister]")
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>,
+#  <a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>,
+#  <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>]
+```
+Поиск тегов по идентификатору:
+
+```python
+soup.select("#link1")
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>]
+
+soup.select("a#link2")
+# [<a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>]
+```
+Найдите теги, соответствующие любому селектору из списка селекторов:
+
+```python
+soup.select("#link1,#link2")
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>,
+#  <a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>]
+```
+Проверка на наличие атрибута:
+
+```python
+soup.select('a[href]')
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>,
+#  <a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>,
+#  <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>]
+```
+Поиск тегов по значению атрибута:
+
+```python
+soup.select('a[href="http://example.com/elsie"]')
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>]
+
+soup.select('a[href^="http://example.com/"]')
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>,
+#  <a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>,
+#  <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>]
+
+soup.select('a[href$="tillie"]')
+# [<a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>]
+
+soup.select('a[href*=".com/el"]')
+# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>]
+```
+Существует также метод `select_one()`, который находит только первый тег, соответствующий селектору:
+
+```python
+soup.select_one(".sister")
+# <a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>
+```
+Если вы проанализировали XML, который определяет пространства имен, вы можете использовать их в селекторах CSS.:
+
+```python
+from bs4 import BeautifulSoup
+xml = """<tag xmlns:ns1="http://namespace1/" xmlns:ns2="http://namespace2/">
+ <ns1:child>I'm in namespace 1</ns1:child>
+ <ns2:child>I'm in namespace 2</ns2:child>
+</tag> """
+soup = BeautifulSoup(xml, "xml")
+
+soup.select("child")
+# [<ns1:child>I'm in namespace 1</ns1:child>, <ns2:child>I'm in namespace 2</ns2:child>]
+
+soup.select("ns1|child", namespaces=namespaces)
+# [<ns1:child>I'm in namespace 1</ns1:child>]
+```
+При обработке CSS-селектора, использующего пространства имен, Beautiful Soup использует сокращения пространства имен, найденные при разборе документа. Вы можете переопределить это, введя свой собственный словарь сокращений:
+
+```python
+namespaces = dict(first="http://namespace1/", second="http://namespace2/")
+soup.select("second|child", namespaces=namespaces)
+# [<ns1:child>I'm in namespace 2</ns1:child>]
+```
+Весь этот материал с CSS-селектором удобен для людей, которые уже знают синтаксис CSS-селектора. Вы можете сделать все это с помощью прекрасного API Soup. И если CSS-селекторы - это все, что вам нужно, вам следует проанализировать документ с помощью lxml: это намного быстрее. Но это позволяет вам комбинировать CSS-селекторы с прекрасным Soup API.
+
+# Modifying the tree
+
+Основная сила Beautiful Soup заключается в поиске по дереву синтаксического анализа, но вы также можете модифицировать дерево и записать свои изменения в виде нового HTML- или XML-документа.
+
+```python
+
+```
 
 
 ```python
@@ -1023,29 +1234,14 @@ first_story_paragraph.find_next_sibling("p")
 ```
 
 
-
 ```python
 
 ```
 
 
-
 ```python
 
 ```
-
-
-
-```python
-
-```
-
-
-
-```python
-
-```
-
 
 
 ```python
