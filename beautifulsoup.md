@@ -1224,6 +1224,318 @@ soup.select("second|child", namespaces=namespaces)
 
 Основная сила Beautiful Soup заключается в поиске по дереву синтаксического анализа, но вы также можете модифицировать дерево и записать свои изменения в виде нового HTML- или XML-документа.
 
+## Изменение имен тегов и атрибутов
+Я рассказывал об этом ранее, в разделе Атрибуты, но это стоит повторить. Вы можете переименовать тег, изменить значения его атрибутов, добавить новые атрибуты и удалить атрибуты:
+
+```python
+soup = BeautifulSoup('<b class="boldest">Extremely bold</b>')
+tag = soup.b
+
+tag.name = "blockquote"
+tag['class'] = 'verybold'
+tag['id'] = 1
+tag
+# <blockquote class="verybold" id="1">Extremely bold</blockquote>
+
+del tag['class']
+del tag['id']
+tag
+# <blockquote>Extremely bold</blockquote>
+```
+## Изменение `.string`
+
+Если вы присваиваете атрибуту `.string` тега значение новой строки, содержимое тега заменяется этой строкой:
+
+```python
+markup = '<a href="http://example.com/">I linked to <i>example.com</i></a>'
+soup = BeautifulSoup(markup)
+
+tag = soup.a
+tag.string = "New link text."
+tag
+# <a href="http://example.com/">New link text.</a>
+```
+Будьте осторожны: если тег содержал другие теги, они и все их содержимое будут уничтожены.
+## `append()`
+
+Вы можете добавить к содержимому тега с помощью `Tag.append()`. Это работает так же, как вызов `.append()` в списке Python:
+
+```python
+soup = BeautifulSoup("<a>Foo</a>")
+soup.a.append("Bar")
+
+soup
+# <html><head></head><body><a>FooBar</a></body></html>
+soup.a.contents
+# [u'Foo', u'Bar']
+```
+## `extend()`
+Начиная с Beautiful Soup 4.7.0, `Tag` также поддерживает метод с именем `.extend()`, который работает точно так же, как вызов `.extend()` в списке Python:
+```python
+soup = BeautifulSoup("<a>Soup</a>")
+soup.a.extend(["'s", " ", "on"])
+
+soup
+# <html><head></head><body><a>Soup's on</a></body></html>
+soup.a.contents
+# [u'Soup', u''s', u' ', u'on']
+```
+## `NavigableString()` и .`new_tag()`
+
+Если вам нужно добавить строку в документ, нет проблем – вы можете передать строку Python в функцию `append()` или вызвать конструктор `NavigableString`:
+
+```python
+soup = BeautifulSoup("<b></b>")
+tag = soup.b
+tag.append("Hello")
+new_string = NavigableString(" there")
+tag.append(new_string)
+tag
+# <b>Hello there.</b>
+tag.contents
+# [u'Hello', u' there']
+```
+Если вы хотите создать комментарий или какой-либо другой подкласс `NavigableString`, просто вызовите конструктор:
+
+```python
+from bs4 import Comment
+new_comment = Comment("Nice to see you.")
+tag.append(new_comment)
+tag
+# <b>Hello there<!--Nice to see you.--></b>
+tag.contents
+# [u'Hello', u' there', u'Nice to see you.']
+```
+(Это новая функция в Beautiful Soup 4.4.0.)
+
+Что, если вам нужно создать совершенно новый тег? Лучшим решением является вызов заводского метода `BeautifulSoup.new_tag()`:
+
+```python
+soup = BeautifulSoup("<b></b>")
+original_tag = soup.b
+
+new_tag = soup.new_tag("a", href="http://www.example.com")
+original_tag.append(new_tag)
+original_tag
+# <b><a href="http://www.example.com"></a></b>
+
+new_tag.string = "Link text."
+original_tag
+# <b><a href="http://www.example.com">Link text.</a></b>
+```
+Требуется только первый аргумент, имя тега.
+
+## `insert()`
+
+Tag.insert() похож на Tag.append(), за исключением того, что новый элемент не обязательно находится в конце родительского .contents. Он будет вставлен в любую указанную вами числовую позицию. Это работает так же, как .insert() в списке Python:
+
+```python
+markup = '<a href="http://example.com/">I linked to <i>example.com</i></a>'
+soup = BeautifulSoup(markup)
+tag = soup.a
+
+tag.insert(1, "but did not endorse ")
+tag
+# <a href="http://example.com/">I linked to but did not endorse <i>example.com</i></a>
+tag.contents
+# [u'I linked to ', u'but did not endorse', <i>example.com</i>]
+```
+## `insert_before()` и `insert_after()`
+
+Метод `insert_before()` вставляет теги или строки непосредственно перед чем-либо другим в дереве синтаксического анализа:
+
+```python
+soup = BeautifulSoup("<b>stop</b>")
+tag = soup.new_tag("i")
+tag.string = "Don't"
+soup.b.string.insert_before(tag)
+soup.b
+# <b><i>Don't</i>stop</b>
+```
+Метод `insert_after()` вставляет теги или строки непосредственно после чего-либо другого в дереве синтаксического анализа:
+
+```python
+div = soup.new_tag('div')
+div.string = 'ever'
+soup.b.i.insert_after(" you ", div)
+soup.b
+# <b><i>Don't</i> you <div>ever</div> stop</b>
+soup.b.contents
+# [<i>Don't</i>, u' you', <div>ever</div>, u'stop']
+```
+## `clear()`
+
+`Tag.clear()` удаляет содержимое тега:
+
+```python
+markup = '<a href="http://example.com/">I linked to <i>example.com</i></a>'
+soup = BeautifulSoup(markup)
+tag = soup.a
+
+tag.clear()
+tag
+# <a href="http://example.com/"></a>
+```
+## `extract()`
+
+`PageElement.extract()` удаляет тег или строку из дерева. Он возвращает тег или строку, которые были извлечены:
+
+```python
+markup = '<a href="http://example.com/">I linked to <i>example.com</i></a>'
+soup = BeautifulSoup(markup)
+a_tag = soup.a
+
+i_tag = soup.i.extract()
+
+a_tag
+# <a href="http://example.com/">I linked to</a>
+
+i_tag
+# <i>example.com</i>
+
+print(i_tag.parent)
+None
+```
+На данный момент у вас фактически есть два дерева синтаксического анализа: одно с корнем в объекте `BeautifulSoup`, который вы использовали для синтаксического анализа документа, и одно с корнем в извлеченном теге. Вы можете перейти к вызову `extract` для дочернего элемента, который вы извлекли:
+
+```python
+my_string = i_tag.string.extract()
+my_string
+# u'example.com'
+
+print(my_string.parent)
+# None
+i_tag
+# <i></i>
+```
+## `decompose()`
+
+`Tag.decompose()` удаляет тег из дерева, затем полностью уничтожает его и его содержимое:
+
+```python
+markup = '<a href="http://example.com/">I linked to <i>example.com</i></a>'
+soup = BeautifulSoup(markup)
+a_tag = soup.a
+
+soup.i.decompose()
+
+a_tag
+# <a href="http://example.com/">I linked to</a>
+```
+## `replace_with()`
+`PageElement.replace_with() `удаляет тег или строку из дерева и заменяет их тегом или строкой по вашему выбору:
+
+```python
+markup = '<a href="http://example.com/">I linked to <i>example.com</i></a>'
+soup = BeautifulSoup(markup)
+a_tag = soup.a
+
+new_tag = soup.new_tag("b")
+new_tag.string = "example.net"
+a_tag.i.replace_with(new_tag)
+
+a_tag
+# <a href="http://example.com/">I linked to <b>example.net</b></a>
+```
+`replace_with()` возвращает тег или строку, которые были заменены, чтобы вы могли просмотреть их или добавить обратно в другую часть дерева.
+
+## `wrap()`
+
+`PageElement.wrap()` обертывает элемент в указанном вами теге. Он возвращает новую оболочку:
+
+```python
+soup = BeautifulSoup("<p>I wish I was bold.</p>")
+soup.p.string.wrap(soup.new_tag("b"))
+# <b>I wish I was bold.</b>
+
+soup.p.wrap(soup.new_tag("div")
+# <div><p><b>I wish I was bold.</b></p></div>
+```
+тот метод является новым в Beautiful Soup 4.0.5.
+
+## `unwrap()`
+
+Функция `Tag.unwrap()` является противоположностью функции `wrap()`. Он заменяет тег на то, что находится внутри этого тега. Это хорошо для удаления разметки:
+
+```python
+markup = '<a href="http://example.com/">I linked to <i>example.com</i></a>'
+soup = BeautifulSoup(markup)
+a_tag = soup.a
+
+a_tag.i.unwrap()
+a_tag
+# <a href="http://example.com/">I linked to example.com</a>
+```
+Как и` replace_with()`, `unwrap()` возвращает тег, который был заменен.
+
+## `smooth()`
+После вызова множества методов, которые изменяют дерево синтаксического анализа, вы можете в конечном итоге получить два или более объектов `NavigableString` рядом друг с другом. У Beautiful Soup с этим нет никаких проблем, но поскольку это не может произойти в только что проанализированном документе, вы можете не ожидать поведения, подобного следующему:
+```python
+soup = BeautifulSoup("<p>A one</p>")
+soup.p.append(", a two")
+
+soup.p.contents
+# [u'A one', u', a two']
+
+print(soup.p.encode())
+# <p>A one, a two</p>
+
+print(soup.p.prettify())
+# <p>
+#  A one
+#  , a two
+# </p>
+```
+Вы можете вызвать `Tag.smooth()`, чтобы очистить дерево синтаксического анализа, объединив соседние строки:
+
+```python
+soup.smooth()
+
+soup.p.contents
+# [u'A one, a two']
+
+print(soup.p.prettify())
+# <p>
+#  A one, a two
+# </p>
+```
+Метод smooth() является новым в Beautiful Soup 4.8.0.
+
+```python
+
+```
+
+
+```python
+
+```
+
+
+```python
+
+```
+
+
+```python
+
+```
+
+
+```python
+
+```
+
+
+```python
+
+```
+
+
+```python
+
+```
+
+
 ```python
 
 ```
