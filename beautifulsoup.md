@@ -1501,8 +1501,31 @@ print(soup.p.prettify())
 ```
 Метод smooth() является новым в Beautiful Soup 4.8.0.
 
-```python
+# Output
 
+## Красивая печать (Pretty-printing)
+
+Метод prettify() превратит красивое дерево синтаксического анализа Soup в красиво отформатированную строку Unicode с отдельной строкой для каждого тега и каждой строки:
+
+```python
+markup = '<a href="http://example.com/">I linked to <i>example.com</i></a>'
+soup = BeautifulSoup(markup)
+soup.prettify()
+# '<html>\n <head>\n </head>\n <body>\n  <a href="http://example.com/">\n...'
+
+print(soup.prettify())
+# <html>
+#  <head>
+#  </head>
+#  <body>
+#   <a href="http://example.com/">
+#    I linked to
+#    <i>
+#     example.com
+#    </i>
+#   </a>
+#  </body>
+# </html>
 ```
 
 
